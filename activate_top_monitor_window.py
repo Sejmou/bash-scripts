@@ -40,7 +40,11 @@ def consecutive_whitespace_except_newline_to_space(str):
 
 def get_windows_per_monitor(window_ids_and_positions, x_offsets):
     def get_monitor(x_pos):
-        # could be written in a smarter way, I know...
+        """
+        gets the monitor ID for a particular window (0 being the left-most monitor, 1 the monitor next to it, etc.)
+
+        For determining what monitor a window belongs to, its "horizontal center" (x-coordinate at middle of window on horizontal axis) is used
+        """
         monitor = 0
         x_offset = 0
 
@@ -72,16 +76,22 @@ def get_window_ids_by_z_idx():
 def get_window_x_position(window_id):
     # if you're wondering: can't use wmctrl -lG to get window x positions as its output is not reliable, some x-coordinates are just BS lol
     # probably the issue is the arrangment of monitors in a multi-monitor setup (for certain types of windows it is respected, for others not...)
-    cmd = f"xwininfo -id {hex(window_id)} | grep 'Absolute upper-left X'"
-    xwininfo_out = subprocess.getoutput(cmd)
-    search_result = re.search(r"[0-9]+", xwininfo_out)
-    if search_result != None:
-        x_pos = int(search_result.group(0))
-        return x_pos
+    left_x_cmd = f"xwininfo -id {hex(window_id)} | grep 'Absolute upper-left X'"
+    xwininfo_out_left_x = subprocess.getoutput(left_x_cmd)
+    left_x_search_result = re.search(r"[0-9]+", xwininfo_out_left_x)
+
+    width_cmd = f"xwininfo -id {hex(window_id)} | grep '  Width:'"
+    xwininfo_out_width = subprocess.getoutput(width_cmd)
+    width_search_result = re.search(r"[0-9]+", xwininfo_out_width)
+
+    if left_x_search_result != None and width_search_result != None:
+        x_pos = int(left_x_search_result.group(0))
+        width = int(width_search_result.group(0))
+        return x_pos + width / 2
     else:
         warnings.warn(
-            f"output of xwinfo command ({cmd}) was:",
-            xwininfo_out,
+            f"output of xwinfo command ({left_x_cmd}) was:",
+            xwininfo_out_left_x,
             "\nCould not find x-coordinate of window",
         )
 
