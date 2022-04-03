@@ -76,22 +76,18 @@ def get_window_ids_by_z_idx():
 def get_window_x_position(window_id):
     # if you're wondering: can't use wmctrl -lG to get window x positions as its output is not reliable, some x-coordinates are just BS lol
     # probably the issue is the arrangment of monitors in a multi-monitor setup (for certain types of windows it is respected, for others not...)
-    left_x_cmd = f"xwininfo -id {hex(window_id)} | grep 'Absolute upper-left X'"
-    xwininfo_out_left_x = subprocess.getoutput(left_x_cmd)
-    left_x_search_result = re.search(r"[0-9]+", xwininfo_out_left_x)
+    cmd = f"xwininfo -id {hex(window_id)} | grep -w -e 'Absolute upper-left X' -e '  Width'"
+    out = subprocess.getoutput(cmd)
+    search_result = re.findall(r"[0-9]+", out)
 
-    width_cmd = f"xwininfo -id {hex(window_id)} | grep '  Width:'"
-    xwininfo_out_width = subprocess.getoutput(width_cmd)
-    width_search_result = re.search(r"[0-9]+", xwininfo_out_width)
-
-    if left_x_search_result != None and width_search_result != None:
-        x_pos = int(left_x_search_result.group(0))
-        width = int(width_search_result.group(0))
+    if search_result != None:
+        x_pos = int(search_result[0])
+        width = int(search_result[1])
         return x_pos + width / 2
     else:
         warnings.warn(
-            f"output of xwinfo command ({left_x_cmd}) was:",
-            xwininfo_out_left_x,
+            f"output of xwinfo command ({cmd}) was:",
+            out,
             "\nCould not find x-coordinate of window",
         )
 
