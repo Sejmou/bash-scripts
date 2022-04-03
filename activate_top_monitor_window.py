@@ -4,6 +4,8 @@ import sys
 from collections import defaultdict
 import warnings
 
+# NOTE: to use this script, wmctrl must be installed on your system!
+
 
 def main():
     if len(sys.argv) != 2:
