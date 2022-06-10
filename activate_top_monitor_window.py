@@ -4,7 +4,13 @@ import sys
 from collections import defaultdict
 import warnings
 
-# NOTE: to use this script, wmctrl must be installed on your system!
+# This script allows you to focus a particular monitor's top window in a multi-monitor setup
+# The monitor to select is specified using an integer (0 == left-most monitor, 1 == monitor next to it etc.)
+# If the mouse/cursor is on a different screen, it is also moved to the middle of the newly focused screen
+# NOTE: to use this script, wmctrl, xrandr, and xdotool must be installed on your system!
+
+# config
+monitor_width = 1920  # used for moving the mouse/cursor; as this is currently hardcoded, monitors of varying width are not supported!
 
 
 def main():
@@ -32,6 +38,18 @@ def main():
     subprocess.run(
         f"wmctrl -i -a {windows_per_monitor[selected_monitor][-1]}".split(" ")
     )
+
+    cursor_monitor = get_cursor_monitor(monitor_x_offsets)
+
+    if cursor_monitor != selected_monitor:
+        no_of_monitors_to_move = selected_monitor - cursor_monitor
+        print(
+            f"xdotool mousemove_relative -- {no_of_monitors_to_move * monitor_width} 0"
+        )
+        subprocess.call(
+            f"xdotool mousemove_relative -- {no_of_monitors_to_move * monitor_width} 0",
+            shell=True,
+        )
 
 
 def consecutive_whitespace_except_newline_to_space(str):
@@ -117,6 +135,24 @@ def get_monitor_x_offsets():
     x_offsets.sort()
 
     return x_offsets
+
+
+def get_cursor_monitor(monitor_x_offsets):
+    """
+    gets the monitor the cursor is currently located at.
+    """
+    # cursor x-pos is first number in output of xdotool getmouselocation
+    cursor_x = int(
+        re.search("\d+", subprocess.getoutput("xdotool getmouselocation")).group()
+    )
+
+    # monitor id is index of last x-offset <= cursor_x
+    # I know, the solution I came up with to get that is a bit of a mindfuck hahaha
+    return next(
+        len(monitor_x_offsets) - 1 - i
+        for i, x in enumerate(reversed(monitor_x_offsets))
+        if x <= cursor_x
+    )
 
 
 main()
