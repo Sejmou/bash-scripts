@@ -98,7 +98,9 @@ def get_window_x_positions(window_ids):
 
 
 def get_monitor_x_offsets():
-    xrandr_out = subprocess.getoutput("xrandr | grep '\sconnected'").split("\n")
+    xrandr_out = subprocess.getoutput("xrandr --current | grep '\sconnected'").split(
+        "\n"
+    )
 
     def extract_monitor_x_offset(xrandr_out_line):
         match = re.search(r"\+[0-9]+", xrandr_out_line)
