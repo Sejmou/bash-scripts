@@ -6,11 +6,8 @@ import warnings
 
 # This script allows you to focus a particular monitor's top window in a multi-monitor setup
 # The monitor to select is specified using an integer (0 == left-most monitor, 1 == monitor next to it etc.)
-# If the mouse/cursor is on a different screen, it is also moved to the middle of the newly focused screen
+# The mouse/cursor is also moved to the middle of the newly focused window
 # NOTE: to use this script, wmctrl, xrandr, and xdotool must be installed on your system!
-
-# config
-monitor_width = 1920  # used for moving the mouse/cursor; as this is currently hardcoded, monitors of varying width are not supported!
 
 
 def main():
@@ -35,21 +32,15 @@ def main():
         window_ids_and_positions, monitor_x_offsets
     )
 
-    subprocess.run(
-        f"wmctrl -i -a {windows_per_monitor[selected_monitor][-1]}".split(" ")
-    )
+    # top-most window of selected_monitor
+    selected_window = windows_per_monitor[selected_monitor][-1]
 
-    cursor_monitor = get_cursor_monitor(monitor_x_offsets)
+    # focus window
+    subprocess.run(f"wmctrl -i -a {selected_window}".split(" "))
 
-    if cursor_monitor != selected_monitor:
-        no_of_monitors_to_move = selected_monitor - cursor_monitor
-        print(
-            f"xdotool mousemove_relative -- {no_of_monitors_to_move * monitor_width} 0"
-        )
-        subprocess.call(
-            f"xdotool mousemove_relative -- {no_of_monitors_to_move * monitor_width} 0",
-            shell=True,
-        )
+    # move mouse cursor into center of selected_window
+    x, y = get_center_x_and_y(selected_window)
+    subprocess.run(f"xdotool mousemove {x} {y}".split(" "))
 
 
 def consecutive_whitespace_except_newline_to_space(str):
@@ -153,6 +144,38 @@ def get_cursor_monitor(monitor_x_offsets):
         for i, x in enumerate(reversed(monitor_x_offsets))
         if x <= cursor_x
     )
+
+
+def get_window_pos_and_size(window_id):
+    filter_params = [
+        "Absolute upper-left X",
+        "Absolute upper-left Y",
+        "Width",
+        "Height",
+    ]
+    filter_params_str = " ".join([f"-e '{param}'" for param in filter_params])
+
+    cmd = f"xwininfo -id {hex(window_id)} | grep -w {filter_params_str}"
+    out = subprocess.getoutput(cmd)
+    search_result = re.findall(r"[0-9]+", out)
+
+    if search_result != None:
+        x = int(search_result[0])
+        y = int(search_result[1])
+        width = int(search_result[2])
+        height = int(search_result[3])
+        return x, y, width, height
+    else:
+        warnings.warn(
+            f"output of xwinfo command ({cmd}) was:",
+            out,
+            "\nCould not find position and size of window",
+        )
+
+
+def get_center_x_and_y(window_id):
+    x, y, width, height = get_window_pos_and_size(window_id)
+    return x + width / 2, y + height / 2
 
 
 main()
