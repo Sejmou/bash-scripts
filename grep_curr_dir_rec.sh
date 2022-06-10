@@ -5,5 +5,5 @@ echo "Text (regex) search through text files in this folder + subfolders"
 echo "Type the pattern you wish to search for:"
 read pattern
 # recursive search from current directory, ignoring binary files and excluding hidden directories (starting with ".")
-grep -rI --exclude-dir='.*' ${pattern} .
+grep -rI --exclude-dir='.*' "${pattern}" .
 read -p "Done searching, press Enter to close this dialog"
