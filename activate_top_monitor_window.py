@@ -4,7 +4,10 @@ import sys
 from collections import defaultdict
 import warnings
 
-# NOTE: to use this script, wmctrl must be installed on your system!
+# This script allows you to focus a particular monitor's top window in a multi-monitor setup
+# The monitor to select is specified using an integer (0 == left-most monitor, 1 == monitor next to it etc.)
+# The mouse/cursor is also moved to the middle of the newly focused window
+# NOTE: to use this script, wmctrl, xrandr, and xdotool must be installed on your system!
 
 
 def main():
@@ -29,9 +32,15 @@ def main():
         window_ids_and_positions, monitor_x_offsets
     )
 
-    subprocess.run(
-        f"wmctrl -i -a {windows_per_monitor[selected_monitor][-1]}".split(" ")
-    )
+    # top-most window of selected_monitor
+    selected_window = windows_per_monitor[selected_monitor][-1]
+
+    # focus window
+    subprocess.run(f"wmctrl -i -a {selected_window}".split(" "))
+
+    # move mouse cursor into center of selected_window
+    x, y = get_center_x_and_y(selected_window)
+    subprocess.run(f"xdotool mousemove {x} {y}".split(" "))
 
 
 def consecutive_whitespace_except_newline_to_space(str):
@@ -98,7 +107,9 @@ def get_window_x_positions(window_ids):
 
 
 def get_monitor_x_offsets():
-    xrandr_out = subprocess.getoutput("xrandr | grep '\sconnected'").split("\n")
+    xrandr_out = subprocess.getoutput("xrandr --current | grep '\sconnected'").split(
+        "\n"
+    )
 
     def extract_monitor_x_offset(xrandr_out_line):
         match = re.search(r"\+[0-9]+", xrandr_out_line)
@@ -115,6 +126,56 @@ def get_monitor_x_offsets():
     x_offsets.sort()
 
     return x_offsets
+
+
+def get_cursor_monitor(monitor_x_offsets):
+    """
+    gets the monitor the cursor is currently located at.
+    """
+    # cursor x-pos is first number in output of xdotool getmouselocation
+    cursor_x = int(
+        re.search("\d+", subprocess.getoutput("xdotool getmouselocation")).group()
+    )
+
+    # monitor id is index of last x-offset <= cursor_x
+    # I know, the solution I came up with to get that is a bit of a mindfuck hahaha
+    return next(
+        len(monitor_x_offsets) - 1 - i
+        for i, x in enumerate(reversed(monitor_x_offsets))
+        if x <= cursor_x
+    )
+
+
+def get_window_pos_and_size(window_id):
+    filter_params = [
+        "Absolute upper-left X",
+        "Absolute upper-left Y",
+        "Width",
+        "Height",
+    ]
+    filter_params_str = " ".join([f"-e '{param}'" for param in filter_params])
+
+    cmd = f"xwininfo -id {hex(window_id)} | grep -w {filter_params_str}"
+    out = subprocess.getoutput(cmd)
+    search_result = re.findall(r"[0-9]+", out)
+
+    if search_result != None:
+        x = int(search_result[0])
+        y = int(search_result[1])
+        width = int(search_result[2])
+        height = int(search_result[3])
+        return x, y, width, height
+    else:
+        warnings.warn(
+            f"output of xwinfo command ({cmd}) was:",
+            out,
+            "\nCould not find position and size of window",
+        )
+
+
+def get_center_x_and_y(window_id):
+    x, y, width, height = get_window_pos_and_size(window_id)
+    return x + width / 2, y + height / 2
 
 
 main()
