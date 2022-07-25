@@ -6,7 +6,7 @@
 xrandr_folder=$HOME/.screenlayout
 
 # apply profile provided as argument (file name without extension)
-$xrandr_folder/$1.sh
+$xrandr_folder/$1
 
 # store profile in location expected by apply-current-monitor-profile.sh
 printf $1 > $xrandr_folder/current-profile
